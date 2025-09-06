@@ -1,0 +1,16 @@
+%WOOFNB 1.0
+name: hello-world
+language: python
+execution:
+  order: graph
+
+```cell id=data1 type=data
+[1,2,3]
+```
+```cell id=mean type=code deps=data1
+values = [1,2,3]
+print(sum(values)/len(values))
+```
+```cell id=test1 type=test deps=mean
+assert True
+```

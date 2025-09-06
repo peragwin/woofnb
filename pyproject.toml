@@ -1,0 +1,29 @@
+[project]
+name = "woofnb"
+version = "0.0.1"
+description = "WOOF Notebook (WOOFNB) reference toolkit"
+readme = "specification.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Steven Cohen" },
+]
+dependencies = [
+    "ruamel-yaml>=0.18.15",
+]
+
+[project.scripts]
+woof = "woofnb.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.12.12",
+]
+
