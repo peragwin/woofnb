@@ -11,7 +11,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from ruamel.yaml import YAML
 
@@ -34,7 +34,12 @@ def _compute_execution_set(nb: Notebook, mode: str) -> List[str]:
         return ids
     # tests mode: include test cells and their deps
     test_ids: Set[str] = {c.id for c in nb.cells if c.type == "test"}
-    deps_map = {c.id: [d.strip() for d in c.header_tokens.get("deps", "").split(",") if d.strip()] for c in nb.cells}
+    deps_map = {
+        c.id: [
+            d.strip() for d in c.header_tokens.get("deps", "").split(",") if d.strip()
+        ]
+        for c in nb.cells
+    }
 
     # closure of deps for each test cell
     needed: Set[str] = set()
@@ -129,12 +134,14 @@ def _cell_attempt_exec(code: str, g: Dict[str, object], timeout: Optional[int]) 
             exec(compile(code, "<cell>", "exec"), g, g)  # noqa: S102
     except Exception as e:  # noqa: BLE001
         tb = traceback.format_exc()
-        records.append({
-            "output_type": "error",
-            "ename": e.__class__.__name__,
-            "evalue": str(e),
-            "traceback": tb.splitlines(),
-        })
+        records.append(
+            {
+                "output_type": "error",
+                "ename": e.__class__.__name__,
+                "evalue": str(e),
+                "traceback": tb.splitlines(),
+            }
+        )
     finally:
         if timeout and have_signal and os.name == "posix":
             signal.alarm(0)
@@ -143,7 +150,9 @@ def _cell_attempt_exec(code: str, g: Dict[str, object], timeout: Optional[int]) 
     stdout_text = out_buf.getvalue()
     stderr_text = err_buf.getvalue()
     if stdout_text:
-        records.insert(0, {"output_type": "stream", "name": "stdout", "text": stdout_text})
+        records.insert(
+            0, {"output_type": "stream", "name": "stdout", "text": stdout_text}
+        )
     if stderr_text:
         records.append({"output_type": "stream", "name": "stderr", "text": stderr_text})
     return {"outputs": records}
@@ -160,22 +169,39 @@ def _cell_attempt_subprocess(code: str, timeout: Optional[int]) -> dict:
         )
         outputs: List[dict] = []
         if proc.stdout:
-            outputs.append({"output_type": "stream", "name": "stdout", "text": proc.stdout})
+            outputs.append(
+                {"output_type": "stream", "name": "stdout", "text": proc.stdout}
+            )
         if proc.stderr:
-            outputs.append({"output_type": "stream", "name": "stderr", "text": proc.stderr})
+            outputs.append(
+                {"output_type": "stream", "name": "stderr", "text": proc.stderr}
+            )
         if proc.returncode != 0:
-            outputs.append({
-                "output_type": "error",
-                "ename": "SubprocessError",
-                "evalue": f"returncode={proc.returncode}",
-                "traceback": [],
-            })
+            outputs.append(
+                {
+                    "output_type": "error",
+                    "ename": "SubprocessError",
+                    "evalue": f"returncode={proc.returncode}",
+                    "traceback": [],
+                }
+            )
         return {"outputs": outputs}
     except subprocess.TimeoutExpired:
-        return {"outputs": [{"output_type": "error", "ename": "TimeoutExpired", "evalue": "", "traceback": []}]}
+        return {
+            "outputs": [
+                {
+                    "output_type": "error",
+                    "ename": "TimeoutExpired",
+                    "evalue": "",
+                    "traceback": [],
+                }
+            ]
+        }
 
 
-def run_notebook(nb: Notebook, *, mode: str = "all", sidecar_path: Optional[Path] = None) -> RunResult:
+def run_notebook(
+    nb: Notebook, *, mode: str = "all", sidecar_path: Optional[Path] = None
+) -> RunResult:
     # Determine sidecar path
     if sidecar_path is None:
         base = Path(nb.path or "notebook.woofnb")
@@ -212,7 +238,9 @@ def run_notebook(nb: Notebook, *, mode: str = "all", sidecar_path: Optional[Path
                 g[c.id] = val
             # log a display_data of the value repr
             outputs.append({"output_type": "execute_result", "repr": repr(val)})
-            _append_sidecar(sidecar_path, {"cell": c.id, "timestamp": timestamp, "outputs": outputs})
+            _append_sidecar(
+                sidecar_path, {"cell": c.id, "timestamp": timestamp, "outputs": outputs}
+            )
             continue
 
         # code/test/bash cells execute
@@ -229,25 +257,40 @@ def run_notebook(nb: Notebook, *, mode: str = "all", sidecar_path: Optional[Path
         while attempts <= retries:
             attempts += 1
             if isolated or c.type == "bash":
-                result = _cell_attempt_subprocess(c.body if c.type != "bash" else c.body, timeout)
+                result = _cell_attempt_subprocess(
+                    c.body if c.type != "bash" else c.body, timeout
+                )
             else:
                 result = _cell_attempt_exec(c.body, g, timeout)
             last = result
             # success if no error output_type present
-            if not any(o.get("output_type") == "error" for o in result.get("outputs", [])):
+            if not any(
+                o.get("output_type") == "error" for o in result.get("outputs", [])
+            ):
                 break
         if last is None:
             last = {"outputs": []}
 
-        _append_sidecar(sidecar_path, {"cell": c.id, "timestamp": timestamp, "outputs": last["outputs"]})
+        _append_sidecar(
+            sidecar_path,
+            {"cell": c.id, "timestamp": timestamp, "outputs": last["outputs"]},
+        )
         if any(o.get("output_type") == "error" for o in last["outputs"]):
             failed.append(c.id)
 
-    return RunResult(failed_cells=failed, total_cells=len(order), mode=mode, sidecar_path=sidecar_path)
+    return RunResult(
+        failed_cells=failed,
+        total_cells=len(order),
+        mode=mode,
+        sidecar_path=sidecar_path,
+    )
 
 
-def run_file(path: str, *, mode: str = "all", sidecar_path: Optional[str] = None) -> int:
+def run_file(
+    path: str, *, mode: str = "all", sidecar_path: Optional[str] = None
+) -> int:
     nb = parse_file(path)
-    res = run_notebook(nb, mode=mode, sidecar_path=Path(sidecar_path) if sidecar_path else None)
+    res = run_notebook(
+        nb, mode=mode, sidecar_path=Path(sidecar_path) if sidecar_path else None
+    )
     return 1 if res.failed_cells else 0
-
