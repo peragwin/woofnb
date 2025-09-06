@@ -8,6 +8,7 @@ authors = [
   { name = "Steven Cohen" },
 ]
 dependencies = [
+    "nbformat>=5.10.4",
     "ruamel-yaml>=0.18.15",
 ]
 

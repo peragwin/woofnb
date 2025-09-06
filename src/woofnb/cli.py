@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import shutil
 from pathlib import Path
 
 from .lint import lint_notebook
@@ -9,6 +10,7 @@ from .parse import parse_file
 from .plan import topo_order
 from .fmt import format_text
 from .runner import run_file
+from .jupyter import export_file_to_ipynb, import_ipynb_file
 
 
 def _cmd_fmt(path: Path) -> int:
@@ -48,15 +50,52 @@ def _cmd_test(path: Path) -> int:
     return run_file(str(path), mode="tests")
 
 
+def _cmd_clean(path: Path | None, clean_all: bool) -> int:
+    if clean_all:
+        base = Path.cwd()
+        # Remove sidecars
+        count = 0
+        for p in base.rglob("*.woofnb.out"):
+            try:
+                p.unlink()
+                count += 1
+            except Exception:
+                pass
+        # Remove caches
+        for d in base.rglob(".woof-cache"):
+            if d.is_dir():
+                try:
+                    shutil.rmtree(d)
+                except Exception:
+                    pass
+        print(f"Cleaned {count} sidecars and .woof-cache directories under {base}")
+        return 0
+    if path is None:
+        print("clean: please provide a file or use --all")
+        return 2
+    sidecar = path.with_suffix(path.suffix + ".out")
+    if sidecar.exists():
+        try:
+            sidecar.unlink()
+        except Exception:
+            pass
+    cache_dir = path.parent / ".woof-cache" / path.stem
+    if cache_dir.exists():
+        try:
+            shutil.rmtree(cache_dir)
+        except Exception:
+            pass
+    print(f"Cleaned sidecar and cache for {path}")
+    return 0
+
+
 def _not_implemented(name: str) -> int:
     print(f"Subcommand '{name}' not yet implemented (Phase 2+)")
     return 2
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="woof", description="WOOF Notebook CLI (scaffold)"
-    )
+    parser = argparse.ArgumentParser(prog="woof", description="WOOF Notebook CLI")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_fmt = sub.add_parser("fmt", help="Format a .woofnb file (header + cells)")
@@ -74,12 +113,29 @@ def main(argv: list[str] | None = None) -> int:
     p_test = sub.add_parser("test", help="Run test cells and deps only")
     p_test.add_argument("file")
 
-    sub.add_parser("export", help="Export to ipynb (stub)")
-    sub.add_parser("import", help="Import from ipynb (stub)")
+    p_clean = sub.add_parser("clean", help="Remove sidecars and caches")
+    p_clean.add_argument("file", nargs="?", help="Specific .woofnb file to clean")
+    p_clean.add_argument(
+        "--all", action="store_true", dest="all", help="Clean all under CWD"
+    )
+
+    p_export = sub.add_parser("export", help="Export .woofnb to .ipynb")
+    p_export.add_argument("file", help="Input .woofnb file")
+    p_export.add_argument("-o", "--output", help="Output .ipynb file (default: stdout)")
+
+    p_import = sub.add_parser("import", help="Import .ipynb to .woofnb")
+    p_import.add_argument("file", help="Input .ipynb file")
+    p_import.add_argument(
+        "-o", "--output", help="Output .woofnb file (default: stdout)"
+    )
 
     args = parser.parse_args(argv)
     cmd = args.cmd
-    path = Path(getattr(args, "file", ".")) if hasattr(args, "file") else None
+    path = (
+        Path(getattr(args, "file", "."))
+        if hasattr(args, "file") and getattr(args, "file")
+        else None
+    )
 
     if cmd == "fmt":
         return _cmd_fmt(path)
@@ -91,6 +147,14 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_run(path)
     if cmd == "test":
         return _cmd_test(path)
+    if cmd == "clean":
+        return _cmd_clean(path, getattr(args, "all", False))
+    if cmd == "export":
+        export_file_to_ipynb(str(path), getattr(args, "output", None))
+        return 0
+    if cmd == "import":
+        import_ipynb_file(str(path), getattr(args, "output", None))
+        return 0
 
     return _not_implemented(cmd)
 

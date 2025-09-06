@@ -3,25 +3,25 @@
 Workflow Oriented Open Format — a lightweight, agent-first, plain-text notebook format and toolkit.
 
 - Spec: see `specification.md`
-- CLI: `woof` (fmt | lint | graph | run | test)
+- CLI: `woof` (fmt | lint | graph | run | test | clean)
 - Language: Python 3.11+
 - Package/venv: uv
 
 ## Quick start
 
-1) Install uv (if not installed):
+1. Install uv (if not installed):
 
 ```
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-2) Sync dependencies (default + dev):
+2. Sync dependencies (default + dev):
 
 ```
 uv sync --group dev
 ```
 
-3) Try the CLI on the example:
+3. Try the CLI on the example:
 
 ```
 uv run woof graph examples/minimal.woofnb
@@ -36,6 +36,7 @@ If you prefer to use the module without uv, you can add `src` to `PYTHONPATH` an
 ## What is WOOFNB?
 
 A plain-text notebook format optimized for:
+
 - Clean diffs and merges
 - Deterministic execution (linear or DAG)
 - Agent editability (simple grammar, explicit deps, per-cell controls)
@@ -77,6 +78,77 @@ uv run python -m unittest discover -s tests -p 'test_*.py'
 
 ```
 uv run woof fmt examples/minimal.woofnb
+## Execution, caching, and policy
+
+- Execution order
+  - Default: linear; set to graph with header:
+
+```
+
+%WOOFNB 1.0
+execution:
+order: graph
+
+```
+
+- Caching (content-hash)
+  - Enable with:
+
+```
+
+%WOOFNB 1.0
+execution:
+order: linear
+cache: content-hash
+
+```
+
+  - Cache key includes: cell body + transitive dep bodies + env + parameters + runner version
+  - Cache is stored under `.woof-cache/<notebook-stem>/<cell-id>.json`
+
+- Policy (default-deny)
+  - Header controls allow-list:
+
+```
+
+%WOOFNB 1.0
+io_policy:
+allow_files: false
+allow_network: false
+allow_shell: false
+
+```
+
+  - Each cell must also declare intent via a `sidefx` token to enable capabilities per cell:
+    - `sidefx=fs` for file access; `sidefx=net` for network; `sidefx=shell` for bash
+  - Example cell fence:
+
+```
+
+```cell id=fetch type=code deps=prep sidefx=net timeout=10
+print("net request here...")
+```
+
+```
+
+## Cleaning sidecars and caches
+
+- Clean for a specific notebook:
+
+```
+
+uv run woof clean examples/minimal.woofnb
+
+```
+
+- Clean all under the current directory (sidecars + .woof-cache trees):
+
+```
+
+uv run woof clean --all
+
+```
+
 ```
 
 ## Sidecar outputs and artifacts
@@ -94,4 +166,3 @@ uv run woof fmt examples/minimal.woofnb
 ## License
 
 TBD.
-

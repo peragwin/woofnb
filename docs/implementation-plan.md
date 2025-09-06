@@ -6,7 +6,7 @@ This document records the phased plan to implement the WOOF Notebook toolchain.
 
 - Agent-first, plain-text format with deterministic execution
 - Conformance Levels A → C for MVP, path to D
-- CLI: `woof fmt | lint | graph | run | test | export | import`
+- CLI: `woof fmt | lint | graph | run | test | clean | export | import`
 - Jupyter interop via import/export
 - Default-deny security posture
 
@@ -73,3 +73,28 @@ This document records the phased plan to implement the WOOF Notebook toolchain.
 - Dependencies: ruamel.yaml (runtime); pytest, ruff (dev)
 - Formatter: YAML-aware header canonicalization implemented; idempotence tests passing
 - Next: expand lint rules; consider Typer CLI ergonomics; prepare CI to run tests + ruff
+
+## Status Update (Runner v1, caching, policy, CI)
+
+- Runner v1: implemented for Python code/test/data/bash cells
+  - Shared interpreter by default; per-cell isolation via `sidefx=isolated`
+  - Timeouts and retries supported; sidecar JSONL `<notebook>.woofnb.out`
+- Caching: content-hash caching gated by `execution.cache: content-hash`
+  - Key includes cell body + transitive dep bodies + env + parameters + runner version
+  - Stored under `.woof-cache/<notebook-stem>/<cell-id>.json`
+- Policy: default-deny; header `io_policy` keys `allow_files|allow_network|allow_shell`
+  - Cell must also declare intent via `sidefx=fs|net|shell` to enable capabilities
+  - bash cells require allow_shell; otherwise blocked
+- CLI: added `woof run`, `woof test`, and `woof clean`
+- CI: GitHub Actions added (uv sync, ruff, unittests on 3.11/3.12/3.13)
+
+## Next Steps (near-term)
+
+- Linting: warn on unknown cell tokens, missing deps, policy conflicts
+- CLI ergonomics: optional switch to Typer and richer output formatting
+- Runner hardening:
+  - Optional true shell execution for bash cells, working-dir sandbox, stricter isolation
+  - Artifact directory per cell (e.g., `artifacts/<cell-id>/`)
+- Interop: Jupyter import/export (nbformat) and golden tests
+- Graph: optional visualization output (mermaid/dot)
+- Docs: expand README on policy, caching, and examples
