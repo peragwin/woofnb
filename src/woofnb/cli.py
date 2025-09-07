@@ -42,8 +42,10 @@ def _cmd_graph(path: Path) -> int:
     return 0
 
 
-def _cmd_run(path: Path) -> int:
-    return run_file(str(path), mode="all")
+def _cmd_run(
+    path: Path, *, cells: list[str] | None = None, include_deps: bool = True
+) -> int:
+    return run_file(str(path), mode="all", cells=cells, include_deps=include_deps)
 
 
 def _cmd_test(path: Path) -> int:
@@ -109,6 +111,18 @@ def main(argv: list[str] | None = None) -> int:
 
     p_run = sub.add_parser("run", help="Execute notebook")
     p_run.add_argument("file")
+    p_run.add_argument(
+        "--cell",
+        dest="cells",
+        action="append",
+        help="Cell id to run (may be repeated)",
+    )
+    p_run.add_argument(
+        "--no-deps",
+        dest="no_deps",
+        action="store_true",
+        help="Run only the selected cell(s) without dependencies",
+    )
 
     p_test = sub.add_parser("test", help="Run test cells and deps only")
     p_test.add_argument("file")
@@ -144,7 +158,11 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "graph":
         return _cmd_graph(path)
     if cmd == "run":
-        return _cmd_run(path)
+        return _cmd_run(
+            path,
+            cells=getattr(args, "cells", None),
+            include_deps=not getattr(args, "no_deps", False),
+        )
     if cmd == "test":
         return _cmd_test(path)
     if cmd == "clean":

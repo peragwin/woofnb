@@ -7,6 +7,56 @@ Workflow Oriented Open Format — a lightweight, agent-first, plain-text noteboo
 - Language: Python 3.11+
 - Package/venv: uv
 
+## Installation
+
+Recommended (uv tool install)
+
+- macOS/Linux:
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install --force --upgrade git+https://github.com/peragwin/woofnb.git
+```
+
+- From a local checkout:
+
+```
+uv tool install --force --upgrade .
+```
+
+- Windows (PowerShell):
+
+```
+powershell -ExecutionPolicy Bypass -Command "iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex"
+uv tool install --force --upgrade git+https://github.com/peragwin/woofnb.git
+```
+
+Alternative (pipx)
+
+If you prefer pipx:
+
+```
+# Install pipx if needed: https://pypa.github.io/pipx/
+pipx ensurepath
+# From GitHub
+pipx install git+https://github.com/peragwin/woofnb.git
+# Or from a local checkout
+pipx install .
+```
+
+Installer script (Unix/macOS)
+
+```
+./scripts/install_woof.sh                 # local checkout
+./scripts/install_woof.sh --from-git https://github.com/peragwin/woofnb.git
+```
+
+Verify
+
+```
+woof --help
+```
+
 ## Quick start
 
 1. Install uv (if not installed):
