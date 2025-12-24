@@ -11,6 +11,13 @@ from .plan import topo_order
 from .fmt import format_text
 from .runner import run_file
 from .jupyter import export_file_to_ipynb, import_ipynb_file
+from .kernel import Kernel
+
+
+def _cmd_kernel() -> int:
+    k = Kernel()
+    k.run()
+    return 0
 
 
 def _cmd_fmt(path: Path) -> int:
@@ -42,8 +49,10 @@ def _cmd_graph(path: Path) -> int:
     return 0
 
 
-def _cmd_run(path: Path) -> int:
-    return run_file(str(path), mode="all")
+def _cmd_run(
+    path: Path, *, cells: list[str] | None = None, include_deps: bool = True
+) -> int:
+    return run_file(str(path), mode="all", cells=cells, include_deps=include_deps)
 
 
 def _cmd_test(path: Path) -> int:
@@ -109,6 +118,18 @@ def main(argv: list[str] | None = None) -> int:
 
     p_run = sub.add_parser("run", help="Execute notebook")
     p_run.add_argument("file")
+    p_run.add_argument(
+        "--cell",
+        dest="cells",
+        action="append",
+        help="Cell id to run (may be repeated)",
+    )
+    p_run.add_argument(
+        "--no-deps",
+        dest="no_deps",
+        action="store_true",
+        help="Run only the selected cell(s) without dependencies",
+    )
 
     p_test = sub.add_parser("test", help="Run test cells and deps only")
     p_test.add_argument("file")
@@ -118,6 +139,8 @@ def main(argv: list[str] | None = None) -> int:
     p_clean.add_argument(
         "--all", action="store_true", dest="all", help="Clean all under CWD"
     )
+
+    p_kernel = sub.add_parser("kernel", help="Run in kernel mode (stdio JSON-RPC)")
 
     p_export = sub.add_parser("export", help="Export .woofnb to .ipynb")
     p_export.add_argument("file", help="Input .woofnb file")
@@ -144,11 +167,17 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "graph":
         return _cmd_graph(path)
     if cmd == "run":
-        return _cmd_run(path)
+        return _cmd_run(
+            path,
+            cells=getattr(args, "cells", None),
+            include_deps=not getattr(args, "no_deps", False),
+        )
     if cmd == "test":
         return _cmd_test(path)
     if cmd == "clean":
         return _cmd_clean(path, getattr(args, "all", False))
+    if cmd == "kernel":
+        return _cmd_kernel()
     if cmd == "export":
         export_file_to_ipynb(str(path), getattr(args, "output", None))
         return 0

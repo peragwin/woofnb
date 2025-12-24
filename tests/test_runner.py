@@ -50,6 +50,24 @@ class TestRunner(unittest.TestCase):
         ids = [rec["cell"] for rec in lines]
         self.assertEqual(ids, ["data1", "mean", "test1"])
 
+    def test_run_single_cell_no_deps(self):
+        # Only the specified cell should run
+        rc = main(["run", str(self.example), "--cell", "test1", "--no-deps"])
+        self.assertEqual(rc, 0)
+        lines = self._read_sidecar()
+        ids = [rec["cell"] for rec in lines]
+        self.assertEqual(ids, ["test1"])  # no deps included
+
+    def test_run_single_cell_with_deps(self):
+        # Selected cell should run with its transitive dependencies by default
+        rc = main(
+            ["run", str(self.example), "--cell", "test1"]
+        )  # include deps (default)
+        self.assertEqual(rc, 0)
+        lines = self._read_sidecar()
+        ids = [rec["cell"] for rec in lines]
+        self.assertEqual(ids, ["data1", "mean", "test1"])  # deps + target in order
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

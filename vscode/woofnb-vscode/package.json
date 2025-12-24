@@ -1,0 +1,101 @@
+{
+  "name": "woofnb-vscode",
+  "displayName": "WOOF Notebook",
+  "description": "VS Code support for WOOFNB (.woofnb, .wnb) notebooks: open, edit, run cells via woof CLI.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onNotebook:woofnb",
+    "onCommand:woofnb.runAll",
+    "onCommand:woofnb.runTests",
+    "onCommand:woofnb.runCellOnly",
+    "onCommand:woofnb.lint",
+    "onCommand:woofnb.format",
+    "onCommand:woofnb.clean"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "notebooks": [
+      {
+        "type": "woofnb",
+        "displayName": "WOOF Notebook",
+        "selector": [
+          {
+            "filenamePattern": "*.woofnb"
+          },
+          {
+            "filenamePattern": "*.wnb"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "woofnb.runAll",
+        "title": "WOOF: Run All"
+      },
+      {
+        "command": "woofnb.runTests",
+        "title": "WOOF: Run Tests"
+      },
+      {
+        "command": "woofnb.runCellOnly",
+        "title": "WOOF: Run Cell (no deps)"
+      },
+      {
+        "command": "woofnb.lint",
+        "title": "WOOF: Lint Notebook"
+      },
+      {
+        "command": "woofnb.format",
+        "title": "WOOF: Format Notebook"
+      },
+      {
+        "command": "woofnb.clean",
+        "title": "WOOF: Clean Sidecar & Cache"
+      }
+    ],
+    "configuration": {
+      "title": "WOOF Notebook",
+      "properties": {
+        "woofnb.runnerCommand": {
+          "type": "string",
+          "default": "woof",
+          "description": "Command used to invoke the runner (e.g. 'woof' or 'uv run woof')."
+        },
+        "woofnb.runnerArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments appended before subcommands."
+        },
+        "woofnb.runCellIncludesDeps": {
+          "type": "boolean",
+          "default": true,
+          "description": "When executing a single cell from the UI, include its dependencies."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/vscode": "^1.88.0",
+    "typescript": "^5.9.3",
+    "vsce": "^2.15.0"
+  }
+}

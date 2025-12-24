@@ -158,18 +158,36 @@ def _cache_write(nb: Notebook, cell_id: str, key: str, outputs: List[dict]) -> N
     )
 
 
-def _compute_execution_set(nb: Notebook, mode: str) -> List[str]:
+def _compute_execution_set(
+    nb: Notebook,
+    mode: str,
+    selected_ids: Optional[Set[str]] = None,
+    include_deps: bool = True,
+) -> List[str]:
     ids = [c.id for c in nb.cells]
+    order = _execution_order(nb)
+
+    # If specific cells requested, compute closure optionally including deps
+    if selected_ids:
+        selected_ids = {i for i in selected_ids if i in ids}
+        if not selected_ids:
+            return []
+        if include_deps:
+            deps_map = _deps_map(nb)
+            needed: Set[str] = set()
+            for sid in selected_ids:
+                for tid in _transitive_ids(sid, deps_map):
+                    needed.add(tid)
+        else:
+            needed = set(selected_ids)
+        return [cid for cid in order if cid in needed]
+
     if mode == "all":
         return ids
+
     # tests mode: include test cells and their deps
     test_ids: Set[str] = {c.id for c in nb.cells if c.type == "test"}
-    deps_map = {
-        c.id: [
-            d.strip() for d in c.header_tokens.get("deps", "").split(",") if d.strip()
-        ]
-        for c in nb.cells
-    }
+    deps_map = _deps_map(nb)
 
     # closure of deps for each test cell
     needed: Set[str] = set()
@@ -184,7 +202,6 @@ def _compute_execution_set(nb: Notebook, mode: str) -> List[str]:
             for d in deps_map.get(v, []):
                 stack.append(d)
     # Return in topo/file order filtered to needed
-    order = _execution_order(nb)
     return [cid for cid in order if cid in needed]
 
 
@@ -330,7 +347,12 @@ def _cell_attempt_subprocess(code: str, timeout: Optional[int]) -> dict:
 
 
 def run_notebook(
-    nb: Notebook, *, mode: str = "all", sidecar_path: Optional[Path] = None
+    nb: Notebook,
+    *,
+    mode: str = "all",
+    sidecar_path: Optional[Path] = None,
+    selected_ids: Optional[Set[str]] = None,
+    include_deps: bool = True,
 ) -> RunResult:
     # Determine sidecar path
     if sidecar_path is None:
@@ -342,7 +364,9 @@ def run_notebook(
     failed: List[str] = []
 
     # Execution order
-    order = _compute_execution_set(nb, mode)
+    order = _compute_execution_set(
+        nb, mode, selected_ids=selected_ids, include_deps=include_deps
+    )
 
     # Globals, header & policy, caching
     g: Dict[str, object] = {"__name__": "__main__"}
@@ -463,19 +487,30 @@ def run_notebook(
         if any(o.get("output_type") == "error" for o in last["outputs"]):
             failed.append(c.id)
 
+    actual_mode = "cells" if selected_ids else mode
     return RunResult(
         failed_cells=failed,
         total_cells=len(order),
-        mode=mode,
+        mode=actual_mode,
         sidecar_path=sidecar_path,
     )
 
 
 def run_file(
-    path: str, *, mode: str = "all", sidecar_path: Optional[str] = None
+    path: str,
+    *,
+    mode: str = "all",
+    sidecar_path: Optional[str] = None,
+    cells: Optional[List[str]] = None,
+    include_deps: bool = True,
 ) -> int:
     nb = parse_file(path)
+    selected_ids = set(cells) if cells else None
     res = run_notebook(
-        nb, mode=mode, sidecar_path=Path(sidecar_path) if sidecar_path else None
+        nb,
+        mode=mode,
+        sidecar_path=Path(sidecar_path) if sidecar_path else None,
+        selected_ids=selected_ids,
+        include_deps=include_deps,
     )
     return 1 if res.failed_cells else 0
